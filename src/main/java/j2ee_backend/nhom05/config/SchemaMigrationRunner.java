@@ -33,7 +33,30 @@ public class SchemaMigrationRunner implements ApplicationRunner {
         // Xóa ràng buộc UNIQUE(product_id, sku) trên bảng product_variants
         // vì "tên biến thể" (sku) có thể trùng nhau trong cùng 1 sản phẩm.
         dropConstraintIfExists("product_variants", "UKotrdr01rrxy6fms8yuyd06jxx");
+        addGoogleAuthColumnsIfMissing();
         recreateProductStatusCheckConstraint();
+    }
+
+    private void addGoogleAuthColumnsIfMissing() {
+        String sql = """
+            IF COL_LENGTH('dbo.users', 'provider') IS NULL
+            BEGIN
+                ALTER TABLE dbo.users ADD provider NVARCHAR(50) NULL;
+            END;
+
+            IF COL_LENGTH('dbo.users', 'provider_id') IS NULL
+            BEGIN
+                ALTER TABLE dbo.users ADD provider_id NVARCHAR(255) NULL;
+            END;
+            """;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.execute();
+            log.info("[SchemaMigration] Đã đảm bảo tồn tại cột users.provider và users.provider_id.");
+        } catch (Exception e) {
+            log.warn("[SchemaMigration] Không thể thêm cột Google auth cho users: {}", e.getMessage());
+        }
     }
 
     private void dropConstraintIfExists(String tableName, String constraintName) {

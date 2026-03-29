@@ -61,6 +61,12 @@ public class User implements UserDetails {
     @Column(name = "phone", length = 20, nullable = true)
     private String phone;
 
+    @Column(name = "provider", length = 50, nullable = true)
+    private String provider;
+
+    @Column(name = "provider_id", length = 255, nullable = true)
+    private String providerId;
+
     @Column(name = "birth_date", nullable = true)
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private LocalDate birthDate;
