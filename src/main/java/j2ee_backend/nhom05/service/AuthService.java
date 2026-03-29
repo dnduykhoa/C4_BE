@@ -293,6 +293,10 @@ public class AuthService {
             throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
         }
 
+        if (GOOGLE_PROVIDER.equalsIgnoreCase(user.getProvider())) {
+            throw new RuntimeException("Tài khoản này đăng nhập bằng Google, vui lòng dùng Google Sign-In");
+        }
+
         // Kiểm tra password
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("Mật khẩu không chính xác");
