@@ -6,12 +6,17 @@ import java.util.Random;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import j2ee_backend.nhom05.dto.auth.ChangePasswordRequest;
 import j2ee_backend.nhom05.dto.auth.ForgotPasswordRequest;
+import j2ee_backend.nhom05.dto.auth.GoogleProfileResponse;
+import j2ee_backend.nhom05.dto.auth.GoogleTokenInfo;
 import j2ee_backend.nhom05.dto.auth.LoginRequest;
 import j2ee_backend.nhom05.dto.auth.RegisterRequest;
 import j2ee_backend.nhom05.dto.auth.ResetPasswordRequest;
@@ -30,6 +35,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Service
 public class AuthService {
+    private static final String GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?id_token={idToken}";
+
     @Autowired
     private IRoleRepository roleRepository;
 
@@ -50,6 +57,11 @@ public class AuthService {
     
     @Autowired
     private AuthSessionService authSessionService;
+
+    @Value("${google.client-id:}")
+    private String googleClientId;
+
+    private final RestTemplate restTemplate = new RestTemplate();
     
     @Transactional
     public User register(RegisterRequest request) {
@@ -116,6 +128,51 @@ public class AuthService {
     public User findByPhone(String phone) {
         return userRepository.findByPhone(phone)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+    }
+
+    public GoogleProfileResponse verifyGoogleIdToken(String idToken) {
+        if (googleClientId == null || googleClientId.isBlank()) {
+            throw new RuntimeException("Google client-id chua duoc cau hinh");
+        }
+
+        GoogleTokenInfo tokenInfo = fetchGoogleTokenInfo(idToken);
+
+        if (tokenInfo == null || tokenInfo.getAud() == null || tokenInfo.getSub() == null || tokenInfo.getEmail() == null) {
+            throw new RuntimeException("Token Google khong hop le");
+        }
+
+        if (!googleClientId.equals(tokenInfo.getAud())) {
+            throw new RuntimeException("Token Google khong hop le cho ung dung nay");
+        }
+
+        if (!"true".equalsIgnoreCase(tokenInfo.getEmailVerified())) {
+            throw new RuntimeException("Email Google chua duoc xac thuc");
+        }
+
+        return new GoogleProfileResponse(
+            tokenInfo.getSub(),
+            tokenInfo.getEmail(),
+            true,
+            tokenInfo.getName(),
+            tokenInfo.getPicture()
+        );
+    }
+
+    private GoogleTokenInfo fetchGoogleTokenInfo(String idToken) {
+        try {
+            GoogleTokenInfo tokenInfo = restTemplate.getForObject(
+                GOOGLE_TOKENINFO_URL,
+                GoogleTokenInfo.class,
+                idToken
+            );
+
+            if (tokenInfo == null) {
+                throw new RuntimeException("Token Google khong hop le hoac da het han");
+            }
+            return tokenInfo;
+        } catch (RestClientException ex) {
+            throw new RuntimeException("Token Google khong hop le hoac da het han");
+        }
     }
     
     // Login user - Trả về TwoFactorResponse nếu cần xác thực 2 bước

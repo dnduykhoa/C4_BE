@@ -124,3 +124,29 @@ Tai lieu nay liet ke cac doan code tich hop dang nhap Google theo thu tu a -> z 
 3. AuthService goi Google tokeninfo API, validate aud + email_verified.
 4. Tim/tao user theo provider+providerId hoac email.
 5. Tra ve user de AuthSessionService phat hanh token dang nhap.
+
+## I. Bo sung xac thuc idToken phia backend (GEAR5-outh2)
+
+Muc tieu: backend khong tin du lieu token tu client, phai tu goi Google de kiem tra token that.
+
+- Endpoint da bo sung:
+  - POST /api/auth/google/verify
+  - Request body: { "idToken": "..." }
+
+- Luong xu ly da bo sung trong backend:
+  1. Nhan idToken tu client.
+  2. Goi Google tokeninfo: https://oauth2.googleapis.com/tokeninfo?id_token=...
+  3. So sanh aud voi cau hinh google.client-id.
+  4. Kiem tra email_verified = true.
+  5. Neu hop le: tra profile (sub, email, emailVerified, name, picture).
+  6. Neu token gia/het han/sai aud/email chua verify: tra 401 ngay, khong xu ly tiep.
+
+- File code da duoc cap nhat:
+  - src/main/java/j2ee_backend/nhom05/controller/AuthController.java
+  - src/main/java/j2ee_backend/nhom05/service/AuthService.java
+  - src/main/java/j2ee_backend/nhom05/dto/auth/GoogleLoginRequest.java
+  - src/main/java/j2ee_backend/nhom05/dto/auth/GoogleTokenInfo.java
+  - src/main/java/j2ee_backend/nhom05/dto/auth/GoogleProfileResponse.java
+
+- Cau hinh can co:
+  - google.client-id=<google_oauth_client_id>

@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import j2ee_backend.nhom05.dto.ApiResponse;
 import j2ee_backend.nhom05.dto.auth.ChangePasswordRequest;
 import j2ee_backend.nhom05.dto.auth.ForgotPasswordRequest;
+import j2ee_backend.nhom05.dto.auth.GoogleLoginRequest;
+import j2ee_backend.nhom05.dto.auth.GoogleProfileResponse;
 import j2ee_backend.nhom05.dto.auth.LoginRequest;
 import j2ee_backend.nhom05.dto.auth.LoginResponse;
 import j2ee_backend.nhom05.dto.auth.RefreshTokenRequest;
@@ -189,6 +191,18 @@ public class AuthController {
                 httpRequest,
                 "Xác thực 2FA thành công");
             return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiResponse(e.getMessage(), null));
+        }
+    }
+
+    // API xac thuc idToken Google tu backend
+    @PostMapping("/google/verify")
+    public ResponseEntity<?> verifyGoogleToken(@Valid @RequestBody GoogleLoginRequest request) {
+        try {
+            GoogleProfileResponse profile = authService.verifyGoogleIdToken(request.getIdToken());
+            return ResponseEntity.ok(new ApiResponse("Xac thuc Google token thanh cong", profile));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ApiResponse(e.getMessage(), null));
