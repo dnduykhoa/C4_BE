@@ -2,6 +2,7 @@ package j2ee_backend.nhom05.service;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
 
@@ -35,6 +36,7 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @Service
 public class AuthService {
+    private static final String GOOGLE_PROVIDER = "google";
     private static final String GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo?id_token={idToken}";
 
     @Autowired
@@ -130,6 +132,62 @@ public class AuthService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
     }
 
+    @Transactional
+    public User loginWithGoogle(String idToken) {
+        GoogleProfileResponse profile = verifyGoogleIdToken(idToken);
+
+        User existingByProvider = userRepository
+            .findByProviderAndProviderId(GOOGLE_PROVIDER, profile.getSub())
+            .orElse(null);
+
+        if (existingByProvider != null) {
+            if (!existingByProvider.isEnabled()) {
+                throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
+            }
+            return existingByProvider;
+        }
+
+        User existingByEmail = userRepository.findByEmail(profile.getEmail()).orElse(null);
+        if (existingByEmail != null) {
+            if (GOOGLE_PROVIDER.equalsIgnoreCase(existingByEmail.getProvider())
+                && existingByEmail.getProviderId() != null
+                && !profile.getSub().equals(existingByEmail.getProviderId())) {
+                throw new RuntimeException("Email đã liên kết với tài khoản Google khác");
+            }
+
+            existingByEmail.setProvider(GOOGLE_PROVIDER);
+            existingByEmail.setProviderId(profile.getSub());
+            if ((existingByEmail.getFullName() == null || existingByEmail.getFullName().isBlank())
+                && profile.getName() != null
+                && !profile.getName().isBlank()) {
+                existingByEmail.setFullName(profile.getName());
+            }
+            User linkedUser = userRepository.save(existingByEmail);
+            if (!linkedUser.isEnabled()) {
+                throw new RuntimeException("Tài khoản đã bị vô hiệu hóa");
+            }
+            return linkedUser;
+        }
+
+        User newUser = new User();
+        newUser.setUsername(generateUniqueGoogleUsername(profile.getEmail(), profile.getName()));
+        newUser.setPassword(passwordEncoder.encode(generateTemporaryPassword()));
+        newUser.setEmail(profile.getEmail());
+        newUser.setFullName(profile.getName());
+        newUser.setProvider(GOOGLE_PROVIDER);
+        newUser.setProviderId(profile.getSub());
+        newUser.setTwoFactorEnabled(false);
+        newUser.setActive(true);
+
+        Role userRole = roleRepository.findByName("USER")
+            .orElseThrow(() -> new RuntimeException("Role USER không tồn tại"));
+        Set<Role> roles = new HashSet<>();
+        roles.add(userRole);
+        newUser.setRoles(roles);
+
+        return userRepository.save(newUser);
+    }
+
     public GoogleProfileResponse verifyGoogleIdToken(String idToken) {
         if (googleClientId == null || googleClientId.isBlank()) {
             throw new RuntimeException("Google client-id chua duoc cau hinh");
@@ -173,6 +231,44 @@ public class AuthService {
         } catch (RestClientException ex) {
             throw new RuntimeException("Token Google khong hop le hoac da het han");
         }
+    }
+
+    private String generateUniqueGoogleUsername(String email, String fullName) {
+        String fallback = "google_user";
+
+        String candidateBase = null;
+        if (fullName != null && !fullName.isBlank()) {
+            candidateBase = fullName;
+        } else if (email != null && email.contains("@")) {
+            candidateBase = email.substring(0, email.indexOf('@'));
+        }
+
+        String normalized = candidateBase == null
+            ? fallback
+            : candidateBase.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+
+        if (normalized.length() < 3) {
+            normalized = fallback;
+        }
+
+        if (normalized.length() > 30) {
+            normalized = normalized.substring(0, 30);
+        }
+
+        String username = normalized;
+        int suffix = 1;
+        while (userRepository.existsByUsername(username)) {
+            username = normalized + suffix;
+            if (username.length() > 50) {
+                username = username.substring(0, 50);
+            }
+            suffix++;
+        }
+        return username;
+    }
+
+    private String generateTemporaryPassword() {
+        return "google_" + System.currentTimeMillis() + "_" + (100000 + new Random().nextInt(900000));
     }
     
     // Login user - Trả về TwoFactorResponse nếu cần xác thực 2 bước

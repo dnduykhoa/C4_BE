@@ -208,4 +208,18 @@ public class AuthController {
                 .body(new ApiResponse(e.getMessage(), null));
         }
     }
+
+    // API dang nhap Google va cap JWT nhu dang nhap thuong
+    @PostMapping("/google")
+    public ResponseEntity<?> loginWithGoogle(@Valid @RequestBody GoogleLoginRequest request, HttpServletRequest httpRequest) {
+        try {
+            User user = authService.loginWithGoogle(request.getIdToken());
+            authSessionService.validateAdminIpPolicyBeforeLogin(user, httpRequest);
+            LoginResponse response = authSessionService.issueLoginTokens(user, false, httpRequest, "Dang nhap Google thanh cong");
+            return ResponseEntity.ok(new ApiResponse("Dang nhap Google thanh cong", response));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiResponse(e.getMessage(), null));
+        }
+    }
 }
