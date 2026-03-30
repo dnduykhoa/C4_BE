@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,8 @@ import j2ee_backend.nhom05.validator.PhoneValidator;
 @Service
 public class OrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
     @Autowired
     private IOrderRepository orderRepository;
 
@@ -69,6 +73,9 @@ public class OrderService {
 
     @Autowired
     private VoucherService voucherService;
+
+    @Autowired
+    private OrderPaymentEmailService orderPaymentEmailService;
 
     private static class OrderLineSource {
         private final Product product;
@@ -456,7 +463,8 @@ public class OrderService {
             throw new RuntimeException("Đơn hàng này không áp dụng thanh toán lại online");
         }
 
-        if (order.getPaymentDeadline() == null || order.getPaymentDeadline().isBefore(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now();
+        if (order.getPaymentDeadline() == null || !order.getPaymentDeadline().isAfter(now)) {
             throw new RuntimeException("Đơn hàng đã hết hạn thanh toán");
         }
 
@@ -476,7 +484,6 @@ public class OrderService {
         }
 
         order.setPaymentRetryCount(retryCount + 1);
-        order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
         return buildOrderResponse(orderRepository.save(order));
     }
 
@@ -485,10 +492,13 @@ public class OrderService {
      */
     @Transactional
     public void expireUnpaidOrders() {
+        LocalDateTime now = LocalDateTime.now();
         List<Long> expiredIds = orderRepository.findExpiredUnpaidOrderIds(
                 OrderStatus.PENDING,
-            List.of(PaymentMethod.MOMO, PaymentMethod.VNPAY),
-                LocalDateTime.now());
+                List.of(PaymentMethod.MOMO, PaymentMethod.VNPAY),
+                now);
+
+        int cancelledCount = 0;
 
         for (Long orderId : expiredIds) {
             Order order = orderRepository.findByIdWithItems(orderId).orElse(null);
@@ -504,10 +514,17 @@ public class OrderService {
             voucherService.releaseVoucher(orderId);
 
             order.setStatus(OrderStatus.CANCELLED);
-            order.setCancelledAt(LocalDateTime.now());
+            order.setCancelledAt(now);
             order.setCancelReason("Hết hạn thanh toán online");
             order.setPaymentDeadline(null);
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
+
+            orderPaymentEmailService.sendOrderExpiredCancellationEmail(savedOrder);
+            cancelledCount++;
+        }
+
+        if (cancelledCount > 0) {
+            log.info("Auto-cancelled {} expired online orders", cancelledCount);
         }
     }
 
