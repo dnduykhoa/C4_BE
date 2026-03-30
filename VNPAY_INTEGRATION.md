@@ -137,3 +137,42 @@ Tai lieu nay liet ke cac doan code tich hop VNPAY theo thu tu a -> z (theo ten f
 4. PaymentController verify callback qua VnpayService.verifyCallback.
 5. Thanh cong -> confirmVnpayPayment; that bai/huy -> cancelVnpayPayment.
 6. Backend redirect frontend voi ket qua success/failed.
+
+---
+
+## Task 1: ✅ Config VnpayConfig + Implement createPaymentUrl()
+
+### Cac file da tao/cap nhat:
+
+#### 1. `src/main/java/j2ee_backend/nhom05/config/VnpayConfig.java`
+- Component theo pattern ConfigurationProperties voi prefix "vnpay"
+- Cac properties: tmnCode, hashSecret, baseUrl, returnUrl, frontendUrl
+- Dung @ConfigurationProperties de binding voi application.properties tu dong
+
+#### 2. `src/main/resources/application.properties`
+- Config sandbox VNPay:
+  - vnpay.tmn-code=TMNCODE (lay tu VNPay sandbox)
+  - vnpay.hash-secret=HASKSECRET (lay tu VNPay sandbox)
+  - vnpay.base-url=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  - vnpay.return-url=http://localhost:8080/api/vnpay/callback
+  - vnpay.frontend-url=http://localhost:3000
+
+#### 3. `src/main/java/j2ee_backend/nhom05/service/VnpayService.java`
+- **createPaymentUrl(orderCode, amount, ipAddr)**: Tao URL thanh toan VNPay
+  - Build day du tham so theo chuan VNPay v2.1.0:
+    - vnp_Version, vnp_Command, vnp_TmnCode, vnp_Amount (× 100)
+    - vnp_CreateDate, vnp_ExpireDate (15 phut sau)
+    - vnp_IpAddr, vnp_Locale, vnp_OrderInfo, vnp_ReturnUrl, vnp_TxnRef
+  - Sap xep tham so theo alphabet
+  - Ky HMAC-SHA512 tao vnp_SecureHash
+  - Return: Payment URL ==> http://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Version=...&vnp_SecureHash=...
+  
+- **verifyCallback(params)**: Xac minh chu ky tu VNPay callback
+  - Loai bo vnp_SecureHash khoi params
+  - Sap xep theo alphabet, tong hash va so sanh
+
+### Cach test:
+1. Thay TMNCODE va HASKSECRET bang gia tri tu VNPay sandbox
+2. Tao don with paymentMethod=VNPAY
+3. OrderController goi VnpayService.createPaymentUrl()
+4. Client redirect den URL -> trang thanh toan sandbox VNPay se hien thi
