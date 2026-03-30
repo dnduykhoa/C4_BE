@@ -332,3 +332,99 @@ List<Long> expiredIds = orderRepository.findExpiredUnpaidOrderIds(
 - ✅ Thanh toan thanh cong tren sandbox → don chuyen CONFIRMED (PAID)
 - ✅ Huy tren sandbox → don xu ly dung (giu PENDING, gia han deadline)
 - ✅ Gia mao callback → khong co gi thay doi (verify that bai)
+
+---
+
+## Task 3: ✅ Auto-cancel don qua deadline (moi phut) + Retry payment URL moi
+
+### Mo ta
+- Chay scheduler moi 1 phut de quet toan bo don co:
+  - status = PENDING
+  - paymentMethod thuoc (VNPAY, MOMO)
+  - paymentDeadline < thoi diem hien tai
+- Tat ca don thoa dieu kien phai bi huy (CANCELLED) va gui email thong bao cho khach hang.
+- Endpoint `POST /api/orders/{id}/retry-payment` chi dung khi user chu dong thu lai:
+  - Neu don con han retry -> tao URL thanh toan moi (VNPAY hoac MOMO)
+  - Neu don het han/khong hop le -> tra loi loi ro rang.
+
+### Cac file can cap nhat
+
+#### 1. `src/main/java/j2ee_backend/nhom05/service/OrderService.java`
+- Bo sung/hoan thien ham `expireUnpaidOrders()`:
+  - Tim danh sach don PENDING cua VNPAY/MOMO da qua deadline.
+  - Doi status sang CANCELLED.
+  - Set `paymentDeadline = null`.
+  - Luu database trong transaction.
+  - Gui email thong bao "don da bi huy do qua han thanh toan".
+- Bo sung/hoan thien ham `retryPayment(orderId, httpRequest)`:
+  - Validate don ton tai.
+  - Validate `paymentMethod` thuoc VNPAY/MOMO.
+  - Validate status con cho phep retry (thuong la PENDING).
+  - Validate `paymentDeadline != null` va `now <= paymentDeadline`.
+  - Neu khong dat dieu kien -> throw exception (vd: BAD_REQUEST) voi message:
+    - "Don hang da het han thanh toan"
+    - "Don hang khong ho tro retry online"
+    - "Don hang khong o trang thai cho thanh toan"
+  - Neu hop le:
+    - Tao URL moi theo payment method.
+    - Co the gia han lai deadline (neu yeu cau nghiep vu cho phep).
+    - Tra ve response co URL moi (`vnpayUrl` hoac `momoPayUrl`) + `paymentDeadline` hien tai.
+
+#### 2. `src/main/java/j2ee_backend/nhom05/config/SchemaMigrationRunner.java` hoac class scheduler rieng
+- Dam bao bat scheduling voi `@EnableScheduling` (neu chua co).
+- Tao job chay chu ky 1 phut:
+  - `@Scheduled(cron = "0 * * * * *")`
+  - Goi `orderService.expireUnpaidOrders()`.
+
+#### 3. `src/main/java/j2ee_backend/nhom05/controller/OrderController.java`
+- Endpoint `POST /api/orders/{id}/retry-payment`:
+  - Goi service retry.
+  - Tra response chua payment URL moi.
+  - Neu service throw loi do het han/khong hop le -> map ve 400 voi message de frontend hien thi.
+
+#### 4. `src/main/java/j2ee_backend/nhom05/repository/OrderRepository.java`
+- Dam bao co query toi uu de lay don qua han:
+  - Loc theo `status = PENDING`.
+  - Loc theo `paymentMethod IN (MOMO, VNPAY)`.
+  - Loc theo `paymentDeadline < :now`.
+
+#### 5. Service gui email (EmailService / NotificationService)
+- Them template/email content cho case auto-cancel qua han:
+  - Tieu de: Don hang da bi huy do qua han thanh toan.
+  - Noi dung: ma don, deadline cu, huong dan dat lai/retry neu can.
+
+### Luong xu ly auto-cancel theo lich
+1. Moi phut scheduler kich hoat.
+2. Goi `expireUnpaidOrders()`.
+3. Lay danh sach don VNPAY/MOMO dang PENDING nhung da qua `paymentDeadline`.
+4. Cap nhat tat ca don thanh CANCELLED.
+5. Gui email thong bao cho tung don bi huy.
+6. Ghi log so luong don da huy de monitor.
+
+### Luong xu ly retry-payment
+1. User goi `POST /api/orders/{id}/retry-payment`.
+2. Backend validate don va dieu kien retry.
+3. Neu con han:
+   - Tao URL thanh toan moi ung voi payment method.
+   - Tra ve URL moi de frontend redirect.
+4. Neu het han hoac khong hop le:
+   - Tra loi 4xx + message loi ro rang.
+
+### Cach test
+1. Tao 1 don VNPAY va 1 don MOMO o trang thai PENDING, set `paymentDeadline` trong qua khu.
+2. Cho scheduler chay (toi da 1 phut).
+3. Verify:
+   - Don doi sang CANCELLED.
+   - `paymentDeadline` da clear (neu theo rule).
+   - Email thong bao da duoc gui.
+4. Tao don PENDING con han, goi `POST /api/orders/{id}/retry-payment`:
+   - Nhan duoc URL moi.
+   - Frontend co the redirect den cong thanh toan.
+5. Tao don da het han, goi retry-payment:
+   - Nhan 4xx voi message "Don hang da het han thanh toan".
+
+### Dieu kien hoan thanh
+- ✅ Don qua deadline tu dong bi huy dung chu ky moi phut.
+- ✅ Moi don bi huy do qua deadline deu gui email thong bao.
+- ✅ Retry payment tra URL moi neu don con han.
+- ✅ Retry payment tra loi neu don het han/khong hop le.
