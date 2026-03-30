@@ -29,8 +29,9 @@ public class OrderResponse {
     private LocalDateTime updatedAt;
     private LocalDateTime cancelledAt;
     private String cancelReason;
+    private String vnpayUrl;  // Chỉ có giá trị khi paymentMethod = VNPAY
     private String momoUrl;   // Chỉ có giá trị khi paymentMethod = MOMO
-    private LocalDateTime paymentDeadline; // Deadline thanh toán (chỉ có khi MOMO chờ thanh toán)
+    private LocalDateTime paymentDeadline; // Deadline thanh toán (chỉ có khi MOMO/VNPAY chờ thanh toán)
 
     // Thông tin giảm giá
     private BigDecimal originalAmount;      // Tổng tiền gốc trước khi giảm

@@ -1,6 +1,7 @@
 package j2ee_backend.nhom05.service;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -36,9 +37,9 @@ public class VnpayService {
      */
     public String createPaymentUrl(String orderCode, BigDecimal amount, String ipAddr) {
         try {
-            // Tính toán thời gian
+            // Tính toán thời gian — VNPay yêu cầu múi giờ Việt Nam (GMT+7)
             SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            sdf.setTimeZone(TimeZone.getTimeZone("Asia/Ho_Chi_Minh"));
             String createDate = sdf.format(new Date());
             
             // Hết hạn sau 15 phút
@@ -66,22 +67,22 @@ public class VnpayService {
             List<String> fieldNames = new ArrayList<>(vnpParams.keySet());
             Collections.sort(fieldNames);
 
-            // Build hashData string
+            // Build hashData và queryString với URL-encoded values theo chuẩn VNPay
             StringBuilder hashData = new StringBuilder();
             StringBuilder queryString = new StringBuilder();
-            
-            for (int i = 0; i < fieldNames.size(); i++) {
-                String fieldName = fieldNames.get(i);
+            boolean isFirst = true;
+
+            for (String fieldName : fieldNames) {
                 String fieldValue = vnpParams.get(fieldName);
-                
                 if (fieldValue != null && !fieldValue.isEmpty()) {
-                    hashData.append(fieldName).append("=").append(fieldValue);
-                    queryString.append(fieldName).append("=").append(fieldValue);
-                    
-                    if (i < fieldNames.size() - 1) {
-                        hashData.append("&");
-                        queryString.append("&");
+                    String encodedValue = URLEncoder.encode(fieldValue, StandardCharsets.UTF_8);
+                    if (!isFirst) {
+                        hashData.append('&');
+                        queryString.append('&');
                     }
+                    hashData.append(fieldName).append('=').append(encodedValue);
+                    queryString.append(fieldName).append('=').append(encodedValue);
+                    isFirst = false;
                 }
             }
 
@@ -118,17 +119,18 @@ public class VnpayService {
         List<String> fieldNames = new ArrayList<>(verifyParams.keySet());
         Collections.sort(fieldNames);
 
-        // Build hashData
+        // Build hashData với URL-encoded values (đồng nhất với cách VNPay tính)
         StringBuilder hashData = new StringBuilder();
-        for (int i = 0; i < fieldNames.size(); i++) {
-            String fieldName = fieldNames.get(i);
+        boolean isFirst = true;
+        for (String fieldName : fieldNames) {
             String fieldValue = verifyParams.get(fieldName);
-            
             if (fieldValue != null && !fieldValue.isEmpty()) {
-                hashData.append(fieldName).append("=").append(fieldValue);
-                if (i < fieldNames.size() - 1) {
-                    hashData.append("&");
-                }
+                try {
+                    String encodedValue = URLEncoder.encode(fieldValue, StandardCharsets.UTF_8);
+                    if (!isFirst) hashData.append('&');
+                    hashData.append(fieldName).append('=').append(encodedValue);
+                    isFirst = false;
+                } catch (Exception ignored) {}
             }
         }
 

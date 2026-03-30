@@ -175,7 +175,7 @@ public class OrderService {
         order.setNote(request.getNote());
         order.setPaymentMethod(paymentMethod);
         order.setStatus(OrderStatus.PENDING);
-        if (paymentMethod == PaymentMethod.MOMO) {
+        if (paymentMethod == PaymentMethod.MOMO || paymentMethod == PaymentMethod.VNPAY) {
             order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
         }
 
@@ -414,6 +414,33 @@ public class OrderService {
         });
     }
 
+    @Transactional
+    public void confirmVnpayPayment(String orderCode) {
+        Order order = orderRepository.findByOrderCode(orderCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + orderCode));
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.setStatus(OrderStatus.CONFIRMED);
+            order.setPaymentDeadline(null);
+            orderRepository.save(order);
+
+            try {
+                cartRepository.findByUserId(order.getUser().getId())
+                        .ifPresent(cart -> cartRepository.delete(cart));
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @Transactional
+    public void cancelVnpayPayment(String orderCode) {
+        orderRepository.findByOrderCode(orderCode).ifPresent(order -> {
+            if (order.getStatus() == OrderStatus.PENDING) {
+                order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
+                orderRepository.save(order);
+            }
+        });
+    }
+
     private static final int MAX_PAYMENT_RETRY = 3;
 
     @Transactional
@@ -425,7 +452,7 @@ public class OrderService {
             throw new RuntimeException("Đơn hàng không ở trạng thái chờ xác nhận");
         }
 
-        if (order.getPaymentMethod() != PaymentMethod.MOMO) {
+        if (order.getPaymentMethod() != PaymentMethod.MOMO && order.getPaymentMethod() != PaymentMethod.VNPAY) {
             throw new RuntimeException("Đơn hàng này không áp dụng thanh toán lại online");
         }
 
@@ -460,7 +487,7 @@ public class OrderService {
     public void expireUnpaidOrders() {
         List<Long> expiredIds = orderRepository.findExpiredUnpaidOrderIds(
                 OrderStatus.PENDING,
-            List.of(PaymentMethod.MOMO),
+            List.of(PaymentMethod.MOMO, PaymentMethod.VNPAY),
                 LocalDateTime.now());
 
         for (Long orderId : expiredIds) {
