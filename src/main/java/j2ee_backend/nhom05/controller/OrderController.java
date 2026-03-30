@@ -24,6 +24,8 @@ import j2ee_backend.nhom05.dto.OrderResponse;
 import j2ee_backend.nhom05.model.User;
 import j2ee_backend.nhom05.service.MomoService;
 import j2ee_backend.nhom05.service.OrderService;
+import j2ee_backend.nhom05.service.VnpayService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -37,12 +39,26 @@ public class OrderController {
     @Autowired
     private MomoService momoService;
 
+    @Autowired
+    private VnpayService vnpayService;
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        } else {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
+    }
+
     // ── POST /api/orders ──────────────────────────────────────────────────────
     // Tạo đơn hàng từ giỏ hàng (yêu cầu đăng nhập) - CUSTOMER ONLY
     @PostMapping
     public ResponseEntity<?> createOrder(
             @AuthenticationPrincipal UserDetails userDetails,
-            @Valid @RequestBody OrderRequest request) {
+            @Valid @RequestBody OrderRequest request,
+            HttpServletRequest httpRequest) {
         // Check if user is backoffice (Admin/Manager/Staff cannot create orders)
         if (RoleAccess.hasAnyRole(userDetails, "ADMIN", "MANAGER", "STAFF")) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -52,6 +68,14 @@ public class OrderController {
         try {
             Long userId = ((User) userDetails).getId();
             OrderResponse order = orderService.createOrder(userId, request);
+
+            // Nếu chọn VNPAY → tạo URL thanh toán VNPay
+            if ("VNPAY".equalsIgnoreCase(request.getPaymentMethod())) {
+                String ip = resolveClientIp(httpRequest);
+                String vnpayUrl = vnpayService.createPaymentUrl(
+                    order.getOrderCode(), order.getTotalAmount(), ip);
+                order.setVnpayUrl(vnpayUrl);
+            }
 
             // Nếu chọn MOMO → tạo URL thanh toán MoMo
             if ("MOMO".equalsIgnoreCase(request.getPaymentMethod())) {
@@ -127,12 +151,19 @@ public class OrderController {
     @PostMapping("/{id}/retry-payment")
     public ResponseEntity<?> retryPayment(
             @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal UserDetails userDetails,
+            HttpServletRequest httpRequest) {
         try {
             Long userId = ((User) userDetails).getId();
             OrderResponse order = orderService.retryPayment(id, userId);
 
             // Tạo lại URL thanh toán theo phương thức đơn hàng
+            if ("VNPAY".equalsIgnoreCase(order.getPaymentMethod())) {
+                String ip = resolveClientIp(httpRequest);
+                String vnpayUrl = vnpayService.createPaymentUrl(
+                    order.getOrderCode(), order.getTotalAmount(), ip);
+                order.setVnpayUrl(vnpayUrl);
+            }
             if ("MOMO".equalsIgnoreCase(order.getPaymentMethod())) {
                 String momoUrl = momoService.createPaymentUrl(
                     order.getOrderCode(), order.getTotalAmount());

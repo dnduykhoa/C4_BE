@@ -216,7 +216,7 @@ public class AuthController {
             User user = authService.loginWithGoogle(request.getIdToken());
             authSessionService.validateAdminIpPolicyBeforeLogin(user, httpRequest);
             LoginResponse response = authSessionService.issueLoginTokens(user, false, httpRequest, "Dang nhap Google thanh cong");
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(new ApiResponse("Dang nhap Google thanh cong", response));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new ApiResponse(e.getMessage(), null));

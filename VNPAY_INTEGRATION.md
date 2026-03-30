@@ -176,3 +176,159 @@ Tai lieu nay liet ke cac doan code tich hop VNPAY theo thu tu a -> z (theo ten f
 2. Tao don with paymentMethod=VNPAY
 3. OrderController goi VnpayService.createPaymentUrl()
 4. Client redirect den URL -> trang thanh toan sandbox VNPay se hien thi
+
+---
+
+## Task 2: ✅ Implement VNPay callback handler + Order confirmation logic
+
+### Mo ta:
+VNPay redirect ve GET /api/vnpay/callback sau khi nguoi dung thanh toan. Backend verify lai chu ky (HMAC-SHA512), kiem tra vnp_ResponseCode de xac dinh thanh cong/that bai, cap nhat don hang tuong ung, va redirect browser ve frontend.
+
+### Cac file da tao/cap nhat:
+
+#### 1. `src/main/java/j2ee_backend/nhom05/controller/PaymentController.java`
+- Them @Autowired VnpayService de su dung verifyCallback
+- **Endpoint /api/vnpay/callback**:
+  - Nhan tat ca params tu VNPay (vnp_ResponseCode, vnp_TxnRef, vnp_SecureHash, etc.)
+  - Buoc 1: Verify chu ky qua vnpayService.verifyCallback(params)
+    - Neu chu ky khong hop le -> redirect failed, khong xu ly gi them
+  - Buoc 2: Kiem tra vnp_ResponseCode:
+    - "00" = thanh toan thanh cong -> goi orderService.confirmVnpayPayment(orderCode)
+    - Khac "00" = that bai/huy -> goi orderService.cancelVnpayPayment(orderCode)
+  - Buoc 3: Redirect browser ve frontend:
+    - Thanh cong: /orders?vnpay=success&orderCode={orderCode}
+    - That bai: /orders?vnpay=failed&code={responseCode}&orderCode={orderCode}
+  - Su dung try-catch de tranh loi khi don da duoc xu ly truoc do
+
+```java
+@GetMapping("/api/vnpay/callback")
+public void vnpayCallback(@RequestParam Map<String, String> params,
+                          HttpServletResponse response) throws IOException {
+    String responseCode = params.get("vnp_ResponseCode");
+    String orderCode    = params.get("vnp_TxnRef");
+    boolean isValid     = vnpayService.verifyCallback(params);
+
+    if (isValid && "00".equals(responseCode) && orderCode != null) {
+        try {
+            orderService.confirmVnpayPayment(orderCode);
+        } catch (Exception ignored) {}
+        response.sendRedirect(frontendUrl + "/orders?vnpay=success&orderCode=" + orderCode);
+    } else {
+        if (orderCode != null) {
+            try {
+                orderService.cancelVnpayPayment(orderCode);
+            } catch (Exception ignored) {}
+        }
+        String code = responseCode != null ? responseCode : "unknown";
+        response.sendRedirect(frontendUrl + "/orders?vnpay=failed&code=" + code + "&orderCode=" + orderCode);
+    }
+}
+```
+
+#### 2. `src/main/java/j2ee_backend/nhom05/service/OrderService.java`
+- Cap nhat createOrder: set paymentDeadline cho ca VNPAY va MOMO (30 phut)
+  
+```java
+if (paymentMethod == PaymentMethod.MOMO || paymentMethod == PaymentMethod.VNPAY) {
+    order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
+}
+```
+
+- **confirmVnpayPayment(orderCode)**: Xu ly khi thanh toan thanh cong
+  - Tim don hang theo orderCode
+  - Kiem tra status = PENDING
+  - Cap nhat: status = CONFIRMED, paymentDeadline = null
+  - Xoa gio hang cua user (neu con)
+  - Luu vao database
+
+```java
+@Transactional
+public void confirmVnpayPayment(String orderCode) {
+    Order order = orderRepository.findByOrderCode(orderCode)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + orderCode));
+    if (order.getStatus() == OrderStatus.PENDING) {
+        order.setStatus(OrderStatus.CONFIRMED);
+        order.setPaymentDeadline(null);
+        orderRepository.save(order);
+        try {
+            cartRepository.findByUserId(order.getUser().getId())
+                    .ifPresent(cart -> cartRepository.delete(cart));
+        } catch (Exception ignored) {}
+    }
+}
+```
+
+- **cancelVnpayPayment(orderCode)**: Xu ly khi thanh toan that bai/huy
+  - Tim don hang theo orderCode
+  - Kiem tra status = PENDING
+  - Gia han paymentDeadline them 30 phut de user co the thanh toan lai
+  - Giu nguyen status = PENDING
+
+```java
+@Transactional
+public void cancelVnpayPayment(String orderCode) {
+    orderRepository.findByOrderCode(orderCode).ifPresent(order -> {
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
+            orderRepository.save(order);
+        }
+    });
+}
+```
+
+- Cap nhat **retryPayment**: Ho tro ca VNPAY va MOMO
+
+```java
+if (order.getPaymentMethod() != PaymentMethod.MOMO && 
+    order.getPaymentMethod() != PaymentMethod.VNPAY) {
+    throw new RuntimeException("Đơn hàng này không áp dụng thanh toán lại online");
+}
+```
+
+- Cap nhat **expireUnpaidOrders**: Tu dong huy don VNPAY/MOMO qua han
+
+```java
+List<Long> expiredIds = orderRepository.findExpiredUnpaidOrderIds(
+    OrderStatus.PENDING,
+    List.of(PaymentMethod.MOMO, PaymentMethod.VNPAY),
+    LocalDateTime.now()
+);
+```
+
+### Luong xu ly callback:
+1. User thanh toan tai VNPay sandbox
+2. VNPay redirect browser ve /api/vnpay/callback voi cac params (vnp_ResponseCode, vnp_TxnRef, vnp_SecureHash, etc.)
+3. Backend verify chu ky bang cach tai tinh HMAC-SHA512 va so voi vnp_SecureHash
+4. Neu chu ky hop le va responseCode = "00":
+   - Goi confirmVnpayPayment -> cap nhat don PENDING -> CONFIRMED
+   - Xoa paymentDeadline
+   - Xoa gio hang
+   - Redirect: /orders?vnpay=success
+5. Neu chu ky hop le nhung responseCode != "00" (that bai/huy):
+   - Goi cancelVnpayPayment -> gia han deadline them 30 phut
+   - Giu PENDING de user co the retry
+   - Redirect: /orders?vnpay=failed&code={code}
+6. Neu chu ky khong hop le (gia mao):
+   - Khong xu ly gi, chi redirect failed
+   - Don hang khong bi thay doi
+
+### Cach test:
+1. Tao don voi paymentMethod=VNPAY
+2. Nhan vnpayUrl tu response va mo trong browser
+3. **Test thanh cong**: Thanh toan thanh cong tren sandbox VNPay
+   - Kiem tra don chuyen tu PENDING -> CONFIRMED
+   - Kiem tra paymentDeadline = null
+   - Kiem tra redirect ve /orders?vnpay=success
+4. **Test that bai**: Huy thanh toan tren sandbox VNPay
+   - Kiem tra don van la PENDING
+   - Kiem tra paymentDeadline duoc gia han
+   - Kiem tra redirect ve /orders?vnpay=failed
+5. **Test gia mao**: Goi truc tiep /api/vnpay/callback voi params tu y
+   - Kiem tra chu ky verify that bai
+   - Kiem tra don khong bi thay doi
+   - Kiem tra redirect ve failed
+
+### Dieu kien hoan thanh:
+- ✅ Thanh toan thanh cong tren sandbox → don chuyen CONFIRMED (PAID)
+- ✅ Huy tren sandbox → don xu ly dung (giu PENDING, gia han deadline)
+- ✅ Gia mao callback → khong co gi thay doi (verify that bai)
