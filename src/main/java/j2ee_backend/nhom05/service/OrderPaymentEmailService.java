@@ -61,7 +61,7 @@ public class OrderPaymentEmailService {
                 helper.setFrom(fromEmail.trim());
             }
             helper.setTo(recipient);
-            helper.setSubject("TechStore - Đặt hàng thành công #" + safeText(order.getOrderCode()));
+            helper.setSubject("GearLab - Đặt hàng thành công #" + safeText(order.getOrderCode()));
 
             String customerName = (order.getFullName() != null && !order.getFullName().isBlank())
                     ? escapeHtml(order.getFullName())
@@ -77,7 +77,7 @@ public class OrderPaymentEmailService {
                     "<div style='font-family: Arial, sans-serif; background-color:#f4f6f8; padding:30px;'>"
                     + "<div style='max-width:620px; margin:auto; background:white; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.1);'>"
                     + "<div style='background:#0f766e; color:white; padding:20px; text-align:center;'>"
-                    + "<h2 style='margin:0;'>TechStore</h2>"
+                    + "<h2 style='margin:0;'>GearLab</h2>"
                     + "<p style='margin:4px 0 0 0; font-size:14px;'>Xác nhận đặt hàng thành công</p>"
                     + "</div>"
                     + "<div style='padding:28px;'>"
@@ -95,10 +95,10 @@ public class OrderPaymentEmailService {
                     + "<p style='margin:0; font-size:15px;'>Tổng tiền sau giảm giá: <b style='color:#e60012; font-size:17px;'>" + amountText + " ₫</b></p>"
                     + "</div>"
                     + "<p style='margin-top:20px;'>Chúng tôi đang xử lý đơn hàng và sẽ giao đến bạn trong thời gian sớm nhất.</p>"
-                    + "<p style='margin-top:24px;'>Trân trọng,<br><b>TechStore Team</b></p>"
+                    + "<p style='margin-top:24px;'>Trân trọng,<br><b>GearLab Team</b></p>"
                     + "</div>"
                     + "<div style='background:#f8fafc; padding:16px; text-align:center; font-size:12px; color:#64748b;'>"
-                    + "© 2026 TechStore. All rights reserved."
+                    + "© 2026 GearLab. All rights reserved."
                     + "</div>"
                     + "</div>"
                     + "</div>";

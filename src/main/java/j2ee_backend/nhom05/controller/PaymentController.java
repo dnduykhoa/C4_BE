@@ -63,7 +63,8 @@ public class PaymentController {
                 } catch (Exception ignored) {}
             }
             String code = responseCode != null ? responseCode : "unknown";
-            response.sendRedirect(frontendUrl + "/orders?vnpay=failed&code=" + code + "&orderCode=" + orderCode);
+            String vnpOrderParam = orderCode != null ? "&orderCode=" + orderCode : "";
+            response.sendRedirect(frontendUrl + "/orders?vnpay=failed&code=" + code + vnpOrderParam);
         }
     }
 
@@ -98,7 +99,8 @@ public class PaymentController {
                 } catch (Exception ignored) {}
             }
             String code = resultCode != null ? resultCode : "unknown";
-            response.sendRedirect(frontendUrl + "/orders?momo=failed&code=" + code + "&orderCode=" + orderCode);
+            String momoOrderParam = orderCode != null ? "&orderCode=" + orderCode : "";
+            response.sendRedirect(frontendUrl + "/orders?momo=failed&code=" + code + momoOrderParam);
         }
     }
 
