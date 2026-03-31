@@ -259,7 +259,10 @@ public class OrderService {
         }
 
         OrderResponse response = buildOrderResponse(savedOrder);
-        orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
+        // Chỉ gửi email xác nhận ngay cho COD; VNPay/MoMo gửi sau khi thanh toán thành công
+        if (savedOrder.getPaymentMethod() == PaymentMethod.CASH) {
+            orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
+        }
         return response;
     }
 
@@ -402,7 +405,7 @@ public class OrderService {
         if (order.getStatus() == OrderStatus.PENDING) {
             order.setStatus(OrderStatus.CONFIRMED);
             order.setPaymentDeadline(null);
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
 
             try {
                 cartRepository.findByUserId(order.getUser().getId())
@@ -410,6 +413,7 @@ public class OrderService {
             } catch (Exception ignored) {
             }
 
+            orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
         }
     }
 
@@ -430,13 +434,15 @@ public class OrderService {
         if (order.getStatus() == OrderStatus.PENDING) {
             order.setStatus(OrderStatus.CONFIRMED);
             order.setPaymentDeadline(null);
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
 
             try {
                 cartRepository.findByUserId(order.getUser().getId())
                         .ifPresent(cart -> cartRepository.delete(cart));
             } catch (Exception ignored) {
             }
+
+            orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
         }
     }
 
