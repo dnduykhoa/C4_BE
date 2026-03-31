@@ -52,6 +52,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/auth/**",
+                    "/api/vnpay/**",
                     "/api/momo/**",
                     "/api/sse/**",
                     "/images/**"

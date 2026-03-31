@@ -19,6 +19,9 @@ public interface IUserRepository extends JpaRepository<User, Long> {
     
     // Tìm user theo số điện thoại
     Optional<User> findByPhone(String phone);
+
+    // Tìm user theo định danh nhà cung cấp OAuth
+    Optional<User> findByProviderAndProviderId(String provider, String providerId);
     
     // Kiểm tra username đã tồn tại
     boolean existsByUsername(String username);

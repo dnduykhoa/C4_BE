@@ -13,7 +13,7 @@ public class PaymentDeadlineScheduler {
     /**
      * Mỗi phút quét và tự huỷ các đơn online quá hạn thanh toán.
      */
-    @Scheduled(fixedDelay = 60000)
+    @Scheduled(cron = "0 * * * * *")
     public void expireUnpaidOrdersTask() {
         orderService.expireUnpaidOrders();
     }

@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,8 @@ import j2ee_backend.nhom05.validator.PhoneValidator;
 @Service
 public class OrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
     @Autowired
     private IOrderRepository orderRepository;
 
@@ -69,6 +73,9 @@ public class OrderService {
 
     @Autowired
     private VoucherService voucherService;
+
+    @Autowired
+    private OrderPaymentEmailService orderPaymentEmailService;
 
     private static class OrderLineSource {
         private final Product product;
@@ -175,7 +182,7 @@ public class OrderService {
         order.setNote(request.getNote());
         order.setPaymentMethod(paymentMethod);
         order.setStatus(OrderStatus.PENDING);
-        if (paymentMethod == PaymentMethod.MOMO) {
+        if (paymentMethod == PaymentMethod.MOMO || paymentMethod == PaymentMethod.VNPAY) {
             order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
         }
 
@@ -251,7 +258,12 @@ public class OrderService {
             cartRepository.delete(cart);
         }
 
-        return buildOrderResponse(savedOrder);
+        OrderResponse response = buildOrderResponse(savedOrder);
+        // Chỉ gửi email xác nhận ngay cho COD; VNPay/MoMo gửi sau khi thanh toán thành công
+        if (savedOrder.getPaymentMethod() == PaymentMethod.CASH) {
+            orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
+        }
+        return response;
     }
 
     /**
@@ -393,7 +405,7 @@ public class OrderService {
         if (order.getStatus() == OrderStatus.PENDING) {
             order.setStatus(OrderStatus.CONFIRMED);
             order.setPaymentDeadline(null);
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
 
             try {
                 cartRepository.findByUserId(order.getUser().getId())
@@ -401,11 +413,41 @@ public class OrderService {
             } catch (Exception ignored) {
             }
 
+            orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
         }
     }
 
     @Transactional
     public void cancelMomoPayment(String orderCode) {
+        orderRepository.findByOrderCode(orderCode).ifPresent(order -> {
+            if (order.getStatus() == OrderStatus.PENDING) {
+                order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
+                orderRepository.save(order);
+            }
+        });
+    }
+
+    @Transactional
+    public void confirmVnpayPayment(String orderCode) {
+        Order order = orderRepository.findByOrderCode(orderCode)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy đơn hàng: " + orderCode));
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.setStatus(OrderStatus.CONFIRMED);
+            order.setPaymentDeadline(null);
+            Order savedOrder = orderRepository.save(order);
+
+            try {
+                cartRepository.findByUserId(order.getUser().getId())
+                        .ifPresent(cart -> cartRepository.delete(cart));
+            } catch (Exception ignored) {
+            }
+
+            orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
+        }
+    }
+
+    @Transactional
+    public void cancelVnpayPayment(String orderCode) {
         orderRepository.findByOrderCode(orderCode).ifPresent(order -> {
             if (order.getStatus() == OrderStatus.PENDING) {
                 order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
@@ -425,11 +467,12 @@ public class OrderService {
             throw new RuntimeException("Đơn hàng không ở trạng thái chờ xác nhận");
         }
 
-        if (order.getPaymentMethod() != PaymentMethod.MOMO) {
+        if (order.getPaymentMethod() != PaymentMethod.MOMO && order.getPaymentMethod() != PaymentMethod.VNPAY) {
             throw new RuntimeException("Đơn hàng này không áp dụng thanh toán lại online");
         }
 
-        if (order.getPaymentDeadline() == null || order.getPaymentDeadline().isBefore(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now();
+        if (order.getPaymentDeadline() == null || !order.getPaymentDeadline().isAfter(now)) {
             throw new RuntimeException("Đơn hàng đã hết hạn thanh toán");
         }
 
@@ -449,7 +492,6 @@ public class OrderService {
         }
 
         order.setPaymentRetryCount(retryCount + 1);
-        order.setPaymentDeadline(LocalDateTime.now().plusMinutes(30));
         return buildOrderResponse(orderRepository.save(order));
     }
 
@@ -458,10 +500,13 @@ public class OrderService {
      */
     @Transactional
     public void expireUnpaidOrders() {
+        LocalDateTime now = LocalDateTime.now();
         List<Long> expiredIds = orderRepository.findExpiredUnpaidOrderIds(
                 OrderStatus.PENDING,
-            List.of(PaymentMethod.MOMO),
-                LocalDateTime.now());
+                List.of(PaymentMethod.MOMO, PaymentMethod.VNPAY),
+                now);
+
+        int cancelledCount = 0;
 
         for (Long orderId : expiredIds) {
             Order order = orderRepository.findByIdWithItems(orderId).orElse(null);
@@ -477,10 +522,17 @@ public class OrderService {
             voucherService.releaseVoucher(orderId);
 
             order.setStatus(OrderStatus.CANCELLED);
-            order.setCancelledAt(LocalDateTime.now());
+            order.setCancelledAt(now);
             order.setCancelReason("Hết hạn thanh toán online");
             order.setPaymentDeadline(null);
-            orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
+
+            orderPaymentEmailService.sendOrderExpiredCancellationEmail(savedOrder);
+            cancelledCount++;
+        }
+
+        if (cancelledCount > 0) {
+            log.info("Auto-cancelled {} expired online orders", cancelledCount);
         }
     }
 
