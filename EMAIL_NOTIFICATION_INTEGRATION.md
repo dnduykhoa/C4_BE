@@ -156,3 +156,32 @@ spring.mail.properties.mail.smtp.writetimeout=5000
 ### Luu y bao mat:
 - TUYET DOI KHONG commit App Password len git public
 - Nen dung bien moi truong hoac secrets manager tren production
+
+## Task 2: ✅ Tạo service trung tâm email và helper buildItemsTableHtml
+
+### Cac file da tao/cap nhat:
+
+#### 1. `src/main/java/j2ee_backend/nhom05/dto/EmailOrderItem.java`
+- Tạo DTO nội bộ chứa thông tin sản phẩm email: ảnh, tên, biến thể, số lượng, đơn giá, thành tiền.
+
+#### 2. `src/main/java/j2ee_backend/nhom05/service/EmailService.java`
+- Tạo service trung tâm để xử lý nội dung email đơn hàng.
+- Implement helper `buildItemsTableHtml(List<EmailOrderItem> items)` để tạo bảng HTML inline gồm:
+  - Ảnh sản phẩm
+  - Tên sản phẩm
+  - Thông tin biến thể
+  - Số lượng
+  - Đơn giá
+  - Thành tiền
+- Bổ sung helper `buildItemsTableHtmlFromOrderItems(List<OrderItem> orderItems)` để chuyển đổi `OrderItem` sang `EmailOrderItem` và render HTML.
+
+### Đã làm:
+- ✅ Tạo service trung tâm email (`EmailService`).
+- ✅ Tạo DTO `EmailOrderItem` để chuẩn hoá dữ liệu đơn hàng dùng cho email.
+- ✅ Implement helper render bảng HTML inline cho danh sách sản phẩm.
+- ✅ Kiểm tra build để đảm bảo code mới biên dịch thành công.
+
+### Chưa làm / phần còn lại giành cho task 3:
+- ⚠️ Chưa tích hợp `EmailService` vào các luồng gửi email thực tế.
+- ⚠️ Chưa thêm các phương thức gửi email cụ thể như `sendOrderConfirmationEmail`, `sendOrderCancelledEmail`, `sendPaymentPendingEmail`, v.v.
+- ⚠️ Chưa xây dựng template email đầy đủ cho các loại email đơn hàng.
