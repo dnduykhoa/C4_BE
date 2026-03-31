@@ -258,7 +258,9 @@ public class OrderService {
             cartRepository.delete(cart);
         }
 
-        return buildOrderResponse(savedOrder);
+        OrderResponse response = buildOrderResponse(savedOrder);
+        orderPaymentEmailService.sendOrderCreatedEmail(savedOrder);
+        return response;
     }
 
     /**
