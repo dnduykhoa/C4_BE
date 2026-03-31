@@ -48,7 +48,7 @@ public class CarouselDataInitializer implements CommandLineRunner {
         s3.setImage("/images/carousel/1ce63a06-3694-48b7-8fce-dad84629ad3d.png");
         s3.setBadge("Mới ra mắt");
         s3.setTitle("Sản phẩm mới\nvừa về kho");
-        s3.setSubtitle("Cập nhật những thiết bị công nghệ mới nhất, hiện đại nhất tại TechStore.");
+        s3.setSubtitle("Cập nhật những thiết bị công nghệ mới nhất, hiện đại nhất tại GearLab.");
         s3.setButtonText("Khám phá ngay");
         s3.setButtonLink("/products");
         s3.setDisplayOrder(3);
