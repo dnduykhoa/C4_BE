@@ -77,23 +77,23 @@ public class AuthService {
         
         // Kiểm tra username đã tồn tại
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Thông tin đã được sử dụng, vui lòng điền lại thông tin");
+            throw new RuntimeException("Username đã được sử dụng");
         }
         
         // Kiểm tra email đã tồn tại
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Thông tin đã được sử dụng, vui lòng điền lại thông tin");
+            throw new RuntimeException("Email đã được sử dụng");
         }
         
         // Chuẩn hóa số điện thoại (+84/84 → 0, xóa khoảng trắng)
         String phone = PhoneValidator.normalize(request.getPhone());
         if (!PhoneValidator.isValid(phone)) {
-            throw new RuntimeException("Số điện thoại Việt Nam không hợp lệ");
+            throw new RuntimeException("Số điện thoại không hợp lệ");
         }
         
         // Kiểm tra số điện thoại đã tồn tại
         if (userRepository.findByPhone(phone).isPresent()) {
-            throw new RuntimeException("Thông tin đã được sử dụng, vui lòng điền lại thông tin");
+            throw new RuntimeException("Số điện thoại đã được sử dụng");
         }
         
         // Tạo user mới
