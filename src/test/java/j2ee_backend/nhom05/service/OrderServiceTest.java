@@ -136,11 +136,11 @@ class OrderServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // DH-WB-01: Tuyến a
+    // DH-WB-01
     // Tài khoản ADMIN cố gắng tạo đơn → Lỗi 403 Forbidden
     // -----------------------------------------------------------------------
     @Test
-    @DisplayName("DH-WB-01: Tài khoản ADMIN tạo đơn hàng – HTTP 403 Forbidden")
+    @DisplayName("DH-WB-01: Tài khoản ADMIN tạo đơn hàng")
     void DHWB01_adminCreateOrder_returns403() {
         User adminUser = userWithRole("ADMIN");
 
@@ -154,11 +154,11 @@ class OrderServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // DH-WB-02: Tuyến b-c
+    // DH-WB-02
     // USER, quantity = 9999 vượt tồn kho → Lỗi 400 tồn kho
     // -----------------------------------------------------------------------
     @Test
-    @DisplayName("DH-WB-02: Số lượng vượt tồn kho – ném ngoại lệ 400")
+    @DisplayName("DH-WB-02: Số lượng vượt tồn kho")
     void DHWB02_exceedStock_throwsException() {
         User activeUser = new User();
         activeUser.setId(1L);
@@ -176,11 +176,11 @@ class OrderServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // DH-WB-03: Tuyến b-d-e
+    // DH-WB-03
     // USER, SP hợp lệ, Payment = "ABC" (sai PTTT) → Lỗi 400 phương thức TT
     // -----------------------------------------------------------------------
     @Test
-    @DisplayName("DH-WB-03: Phương thức thanh toán không hợp lệ – ném ngoại lệ 400")
+    @DisplayName("DH-WB-03: Phương thức thanh toán không hợp lệ")
     void DHWB03_invalidPaymentMethod_throwsException() {
         User activeUser = new User();
         activeUser.setId(1L);
@@ -198,12 +198,12 @@ class OrderServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // DH-WB-04: Tuyến b-d-f-g-h
+    // DH-WB-04
     // USER, giỏ hàng có SP, Payment = "VNPAY"
     // → HTTP 201, tạo đơn, xóa giỏ hàng (trong service), sinh URL VNPAY
     // -----------------------------------------------------------------------
     @Test
-    @DisplayName("DH-WB-04: USER đặt hàng VNPAY – HTTP 201, đơn được tạo, sinh URL VNPAY")
+    @DisplayName("DH-WB-04: USER đặt hàng VNPAY")
     void DHWB04_userCreateOrderVnpay_returns201WithVnpayUrl() {
         User regularUser = userWithRole("USER");
 

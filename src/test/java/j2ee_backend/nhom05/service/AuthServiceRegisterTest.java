@@ -28,7 +28,6 @@ import j2ee_backend.nhom05.validator.PasswordValidator;
 
 /**
  * 4.1.3. Test case – Chức năng Đăng ký (White-box)
- * Tuyến đường: BD → B → C → D → E → F → G → H → I → J → KT
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("4.1.3 - Test Case: Chức năng Đăng ký")
@@ -90,8 +89,8 @@ class AuthServiceRegisterTest {
     }
 
     // -----------------------------------------------------------------------
-    // DK-WB-01: Tuyến BD-B(T)-C(T)-D(T)-E(T)-F(T)-G(T)-H(T)-I-J-KT
-    // Đăng ký thành công – toàn bộ nhánh True
+    // DK-WB-01
+    // Đăng ký thành công
     // -----------------------------------------------------------------------
     @Test
     @DisplayName("DK-WB-01: Đăng ký thành công")
@@ -126,8 +125,8 @@ class AuthServiceRegisterTest {
     }
 
     // -----------------------------------------------------------------------
-    // DK-WB-02: Tuyến BD-B(F)-Z-KT
-    // Sai xác nhận mật khẩu – ngắt tại B, trả lỗi 400
+    // DK-WB-02
+    // Sai xác nhận mật khẩu
     // -----------------------------------------------------------------------
     @Test
     @DisplayName("DK-WB-02: Mật khẩu xác nhận không khớp")
@@ -142,8 +141,8 @@ class AuthServiceRegisterTest {
     }
 
     // -----------------------------------------------------------------------
-    // DK-WB-03: Tuyến BD-B(T)-C(F)-Z-KT
-    // Mật khẩu không đạt chuẩn bảo mật – ngắt tại C, trả lỗi 400
+    // DK-WB-03
+    // Mật khẩu không đạt chuẩn bảo mật 
     // -----------------------------------------------------------------------
     @Test
     @DisplayName("DK-WB-03: Mật khẩu không đạt chính sách bảo mật")
@@ -162,8 +161,8 @@ class AuthServiceRegisterTest {
     }
 
     // -----------------------------------------------------------------------
-    // DK-WB-04: Tuyến BD-B(T)-C(T)-D(F)-Z-KT
-    // Username đã tồn tại – ngắt tại D, trả lỗi 400
+    // DK-WB-04
+    // Username đã tồn tại
     // -----------------------------------------------------------------------
     @Test
     @DisplayName("DK-WB-04: Username đã được sử dụng")

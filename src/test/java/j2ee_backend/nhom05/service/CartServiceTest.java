@@ -87,7 +87,7 @@ class CartServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // GH-WB-01: Tuyến a → c → i
+    // GH-WB-01
     // SP không có biến thể (hasActiveVariants=False), variantId=null
     // → Thêm sản phẩm cha vào giỏ, trả về 200
     // -----------------------------------------------------------------------
@@ -124,7 +124,7 @@ class CartServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // GH-WB-02: Tuyến a → b → e → i
+    // GH-WB-02:
     // SP có biến thể (hasActiveVariants=True), variantId=15L (hợp lệ)
     // → Số lượng cart_item tăng thêm 2
     // -----------------------------------------------------------------------
@@ -166,7 +166,7 @@ class CartServiceTest {
     }
 
     // -----------------------------------------------------------------------
-    // GH-WB-03: Tuyến a → b → d → g → i
+    // GH-WB-03
     // SP có biến thể (hasActiveVariants=True), variantId=null, parentAvailable=True (C=False)
     // → SP cha được thêm vào giỏ thành công (200)
     // -----------------------------------------------------------------------

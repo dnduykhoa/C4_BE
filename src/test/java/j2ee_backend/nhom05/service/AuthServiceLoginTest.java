@@ -25,7 +25,6 @@ import j2ee_backend.nhom05.validator.PasswordValidator;
 
 /**
  * Test Case – Chức năng Đăng nhập (White-box)
- * Tuyến đường: a → b/c → d/e/f/g/h → i/j/k/l
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("4.2.3 - Test Case: Chức năng Đăng nhập")
@@ -63,7 +62,7 @@ class AuthServiceLoginTest {
     }
 
     // -----------------------------------------------------------------------
-    // DN-WB-01: Tuyến a → b → d
+    // DN-WB-01
     // Sai cả định dạng Email lẫn SĐT – ngắt ngay tại bước kiểm tra định dạng
     // -----------------------------------------------------------------------
     @Test
@@ -79,7 +78,7 @@ class AuthServiceLoginTest {
     }
 
     // -----------------------------------------------------------------------
-    // DN-WB-02: Tuyến a → b → e → g → i
+    // DN-WB-02
     // SĐT đúng định dạng nhưng tài khoản hoàn toàn không tồn tại trong DB
     // -----------------------------------------------------------------------
     @Test
@@ -96,7 +95,7 @@ class AuthServiceLoginTest {
     }
 
     // -----------------------------------------------------------------------
-    // DN-WB-03: Tuyến a → c → f → j
+    // DN-WB-03
     // Email tồn tại trong DB nhưng tài khoản đang bị khóa
     // -----------------------------------------------------------------------
     @Test
@@ -114,7 +113,7 @@ class AuthServiceLoginTest {
     }
 
     // -----------------------------------------------------------------------
-    // DN-WB-04: Tuyến a → c → f → k → l
+    // DN-WB-04
     // Email hợp lệ, tài khoản hoạt động, nhưng mật khẩu không khớp
     // -----------------------------------------------------------------------
     @Test
@@ -134,7 +133,7 @@ class AuthServiceLoginTest {
     }
 
     // -----------------------------------------------------------------------
-    // DN-WB-05: Tuyến a → c → g → i
+    // DN-WB-05
     // Email đúng định dạng, không tìm thấy theo cả email lẫn SĐT
     // -----------------------------------------------------------------------
     @Test
@@ -151,7 +150,7 @@ class AuthServiceLoginTest {
     }
 
     // -----------------------------------------------------------------------
-    // DN-WB-06: Tuyến a → c → g → h → j
+    // DN-WB-06
     // Đầu vào là Email, tìm bằng Email không thấy, tìm bằng SĐT lại thấy
     // nhưng tài khoản đó đang bị khóa
     // -----------------------------------------------------------------------
